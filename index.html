@@ -1,27 +1,47 @@
 <!doctype html>
 <html>
 <head>
+<title>Geographic Coordinate Conversion</title>
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.3/jquery.min.js"></script>
 <script>
-function dms(d,m,s) {
+function dms(d,m,s,t) {
     this.d = parseInt(d);
     this.m = parseInt(m);
     this.s = parseInt(s);
+    this.t = t;
 }
 dms.prototype.toString = function() {
-    return this.d + " " + this.m + " " + this.s;
+    var d = this.d;
+    if(this.t && this.t == dms.LAT) {
+        if(d < 0) {
+            d = Math.abs(d) + "S";
+        } else {
+            d += "N";
+        }
+    } else if(this.t && this.t == dms.LON) {
+        if(d < 0) {
+            d = Math.abs(d) + "W";
+        } else {
+            d += "E";
+        }
+    }
+    return d + " " + this.m + "' " + this.s+'"';
 }
+dms.LAT = 1;
+dms.LON = 2;
 dms.dms2dd = function(ms) {
     var dd = parseFloat(Math.abs(parseInt(ms.d)));
     var s = (ms.m * 60 + ms.s) / 3600;
     dd += s;
+    if(ms.d < 0) dd *= -1;
     return dd;
 }
-dms.dd2dms = function(dd) {
+dms.dd2dms = function(dd,t) {
     var d = Math.abs(parseInt(dd));
     var m = Math.floor(((Math.abs(dd) - d)*3600)/60);
     var s = ((Math.abs(dd)-d)*3600)%60;
-    return new dms(d, m, s);
+    if(dd<0) d *= -1;
+    return new dms(d, m, s, t);
 }
 dms.prototype.valid_lat = function() {
     var valid = false;
@@ -107,8 +127,8 @@ ddms.parse_dms = function(s) {
         parsed.lat_s = parseInt(parsed.lat_s);
         parsed.lon_s = parseInt(parsed.lon_s);
         parsed = {
-            "lat": new dms(parsed.lat_deg, parsed.lat_m, parsed.lat_s),
-            "lon": new dms(parsed.lon_deg, parsed.lon_m, parsed.lon_s)
+            "lat": new dms(parsed.lat_deg, parsed.lat_m, parsed.lat_s, dms.LAT),
+            "lon": new dms(parsed.lon_deg, parsed.lon_m, parsed.lon_s, dms.LON)
         };
         if(parsed.lat.d > 90 || parsed.lat.d < -90)
             throw new Error('Invalid latitude: out of range.');
@@ -141,10 +161,10 @@ ddms.parse_decdeg = function(s) {
         } else if(latdir && latdir.match(/^[Nn]$/)) {
             if(lat < 0) throw new Error('Invalid latitude: negative "N" lat.');
         }
-        if(londir && londir.match(/^[Ss]$/)) {
+        if(londir && londir.match(/^[Ww]$/)) {
             if(lon < 0) throw new Error('Invalid longitude: negative "W" lon.');
             lon = -lon;
-        } else if(londir && londir.match(/^[Nn]$/)) {
+        } else if(londir && londir.match(/^[Ee]$/)) {
             if(lon < 0) throw new Error('Invalid longitude: negative "E" lon.');
         }
         parsed = {
@@ -163,14 +183,14 @@ $(document).ready(function() {
             decdeg_p = false;
         }
         if(decdeg_p) {
-            $('#decdeg, #dms').removeClass('error');
+            $('#decdeg-wrapper, #dms-wrapper').removeClass('error');
             $('#dms').val(
-                dms.dd2dms(decdeg_p.lat).toString()+
-                " "+
-                dms.dd2dms(decdeg_p.lon).toString()
+                dms.dd2dms(decdeg_p.lat, dms.LAT).toString()+
+                ", "+
+                dms.dd2dms(decdeg_p.lon, dms.LON).toString()
             );
         } else {
-            $('#decdeg, #dms').addClass('error');
+            $('#decdeg-wrapper, #dms-wrapper').addClass('error');
         }
     });
     $('#dms').keyup(function() {
@@ -182,27 +202,76 @@ $(document).ready(function() {
             dms_p = false;
         }
         if(dms_p) {
-            $('#decdeg, #dms').removeClass('error');
+            $('#decdeg-wrapper, #dms-wrapper').removeClass('error');
             $('#decdeg').val(
                 dms.dms2dd(dms_p.lat).toFixed(6)+
-                ' '+
+                ', '+
                 dms.dms2dd(dms_p.lon).toFixed(6)
             );
         } else {
-            $('#decdeg, #dms').addClass('error');
+            $('#decdeg-wrapper, #dms-wrapper').addClass('error');
         }
 
     });
+    $('#help h3').click(function() {
+        $(this).parent().find('p, div').toggle();
+    });
+    $('#help h3').click();
 });
 </script>
+<link rel="stylesheet" href="css/blueprint/screen.css" type="text/css" media="screen, projection">
+<link rel="stylesheet" href="css/blueprint/print.css" type="text/css" media="print"> 
+<!--[if lt IE 8]>
+<link rel="stylesheet" href="css/blueprint/ie.css" type="text/css" media="screen, projection">
+<![endif]-->
+<style>
+#help h3 {
+    cursor: pointer;
+}
+</style>
 </head>
 <body>
-<fieldset>
-<legend>Decimal Degrees</legend>
-<input type="text" id="decdeg" value="0 0 0 0 0" />
-</fieldset>
-<fieldset>
-<legend>Degrees-Minutes-Seconds</legend>
-<input type="text" id="dms" value="0 0 0 0 0 0" />
-</fieldset>
+<div class="container">
+    <h1>Geographic Coordinate Conversion</h1>
+    <hr />
+    <fieldset>
+    <legend>Decimal Degrees</legend>
+    <div id="decdeg-wrapper">
+    <input class="title" type="text" id="decdeg" value="42.350278, -71.106389" />
+    </div>
+    </fieldset>
+    <fieldset>
+    <legend>DMS</legend>
+    <div id="decdeg-wrapper">
+    <input class="title" type="text" id="dms" value="42N 21' 1&quot;, 71W 6' 23&quot;" />
+    </div>
+    </fieldset>
+    <div id="help" class="container notice">
+        <h3>Need Help?</h3>
+        <p>Enter decimal degree coordinates in the top box to see the degrees-minutes-seconds equivalent.
+        To convert degrees-minutes-seconds, enter coordinates into the bottom box.
+        </p>
+        <div class="span-8">
+            <p>Decimal degrees can be formatted like any of the following:</p>
+            <code>
+            42.350278, -71.106389<br />
+            42.350278N, 71.106389W<br />
+            42.350278 -71.106389<br />
+            42.350278       -71.106389<br />
+            42.350278N, -71.106389<br />
+            </code>
+        </div>
+        <div class="span-8">
+            <p>DMS coordinates can be formatted like any of the following:</p>
+            <code>
+            42N 21' 1", 71W 6' 23"<br />
+            42N 21 1, 71W 6 23<br />
+            42 21m 1s, -71 6' 23"<br />
+            42 21' 1s, -71 6m 23"<br />
+            42N 21 1        71W 6 23<br />
+            </code>
+        </div>
+    </div>
+
+</div>
 </body>
