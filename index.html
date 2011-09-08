@@ -307,7 +307,7 @@ $(document).ready(function() {
                 dms.dms2decmin(dms.dd2dms(decdeg_p.lon, dms.LON))
             );
         } else {
-            $('#decdeg-wrapper, #dms-wrapper').addClass('error');
+            $('#decdeg-wrapper, #dms-wrapper, #decmin-wrapper').addClass('error');
             $('#status').removeClass('success').addClass('error').show().text(err);
         }
     });
@@ -335,7 +335,7 @@ $(document).ready(function() {
                 dms.dms2decmin(dms_p.lon).toString()
             );
         } else {
-            $('#decdeg-wrapper, #dms-wrapper').addClass('error');
+            $('#decdeg-wrapper, #dms-wrapper, #decmin-wrapper').addClass('error');
             $('#status').removeClass('success').addClass('error').show().text(err);
         }
 
@@ -364,7 +364,7 @@ $(document).ready(function() {
                 dms.decmin2dms(decmin_p.lon, dms.LON).toString()
             );
         } else {
-            $('#decdeg-wrapper, #dms-wrapper').addClass('error');
+            $('#decdeg-wrapper, #dms-wrapper, #decmin-wrapper').addClass('error');
             $('#status').removeClass('success').addClass('error').show().text(err);
         }
     });
