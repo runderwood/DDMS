@@ -1,0 +1,208 @@
+<!doctype html>
+<html>
+<head>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.3/jquery.min.js"></script>
+<script>
+function dms(d,m,s) {
+    this.d = parseInt(d);
+    this.m = parseInt(m);
+    this.s = parseInt(s);
+}
+dms.prototype.toString = function() {
+    return this.d + " " + this.m + " " + this.s;
+}
+dms.dms2dd = function(ms) {
+    var dd = parseFloat(parseInt(ms.d));
+    var s = (ms.m * 60 + ms.s) / 3600;
+    dd += s;
+    return dd;
+}
+dms.dd2dms = function(dd) {
+    var d = Math.abs(parseInt(dd));
+    var m = Math.floor(((Math.abs(dd) - d)*3600)/60);
+    var s = ((Math.abs(dd)-d)*3600)%60;
+    return new dms(d, m, s);
+}
+dms.prototype.valid_lat = function() {
+    var valid = false;
+    if(!isNaN(this.d) && !isNaN(this.m) && !isNaN(this.s)) {
+        if(-90.0 <= this.d <= 90.0) {
+            if(this.m < 60.0 && this.s < 60.0) {
+                valid = true;
+            }
+        }
+    }
+    return valid;
+}
+dms.prototype.valid_lon = function() {
+    var valid = false;
+    if(!isNaN(this.d) && !isNaN(this.m) && !isNaN(this.s)) {
+        if(-180.0 <= this.d <= 180.0) {
+            if(this.m < 60.0 && this.s < 60.0) {
+                valid = true;
+            }
+        }
+    }
+    return valid;
+}
+function dd(d) {
+    this.d = parseFloat(d);
+}
+dd.prototype.valid_lat = function() {
+    var valid = false;
+    if(-90.0 <= this.d <= 90.0) {
+        valid = true;
+    }
+    return valid;
+}
+dd.prototype.valid_lon = function() {
+    var valid = false;
+    if(-180.0 <= this.d <= 180.0) {
+        valid = true;
+    }
+    return valid;
+}
+ddms = {};
+ddms.parse_dms = function(s) {
+    var m = s.match(/((-?[0-9]{1,2}([NnSs])?)((\s*,\s*)|(\s+))([0-9]{1,2})((\s*,\s*)|(\s+))([0-9]{1,2}))((\s*,\s*)|(\s+))((-?[0-9]{1,3}([EeWw])?)((\s*,\s*)|(\s+))([0-9]{1,2})((\s*,\s*)|(\s+))([0-9]{1,2}))/);
+    var ks = [
+        'full', 
+        'full_lat', 'lat_deg', 'lat_dir',
+        null, null, null,
+        'lat_m',
+        null, null, null,
+        'lat_s',
+        null, null, null,
+        'full_lon', 'lon_deg', 'lon_dir',
+        null, null, null,
+        'lon_m',
+        null, null, null,
+        'lon_s'
+    ];
+    var parsed = false;
+    if(m) {
+        parsed = {};
+        for(var i=0; i<m.length; i++) {
+            var k = ks[i];
+            parsed[k] = m[i];
+        }
+        parsed.lat_deg = parseInt(parsed.lat_deg);
+        if(parsed.lat_dir && parsed.lat_dir.match(/^[Ss]$/)) {
+            if(parsed.lat_deg < 0) throw new Error('Invalid DMS: negative "S" lat.');
+            parsed.lat_deg = -Math.abs(parsed.lat_deg);
+        } else if(parsed.lat_dir && parsed.lat_dir.match(/^[Nn]$/)) {
+            if(parsed.lat_deg < 0) throw new Error('Invalid DMS: negative "E" lat.');
+            parsed.lat_deg = Math.abs(parsed.lat_deg);
+        }
+        parsed.lon_deg = parseInt(parsed.lon_deg);
+        if(parsed.lon_dir && parsed.lon_dir.match(/^[Ww]$/)) {
+            if(parsed.lon_deg < 0) throw new Error('Invalid DMS: negative "W" lon.');
+            parsed.lon_deg = -Math.abs(parsed.lon_deg);
+        } else if(parsed.lon_dir && parsed.lon_dir.match(/^[Ee]$/)) {
+            if(parsed.lon_deg < 0) throw new Error('Invalid DMS: negative "E" lon.');
+            parsed.lon_deg = Math.abs(parsed.lon_deg);
+        }
+        parsed.lat_m = parseInt(parsed.lat_m);
+        parsed.lon_m = parseInt(parsed.lon_m);
+        parsed.lat_s = parseInt(parsed.lat_s);
+        parsed.lon_s = parseInt(parsed.lon_s);
+        parsed = {
+            "lat": new dms(parsed.lat_deg, parsed.lat_m, parsed.lat_s),
+            "lon": new dms(parsed.lon_deg, parsed.lon_m, parsed.lon_s)
+        };
+        if(parsed.lat.d > 90 || parsed.lat.d < -90)
+            throw new Error('Invalid latitude: out of range.');
+        if(parsed.lon.d > 180 || parsed.lon.d < -180)
+            throw new Error('Invalid longitude: out of range.');
+        if(parsed.lat.m < 0 || parsed.lat.m > 59)
+            throw new Error('Invalid latitude: minutes out of range.');
+        if(parsed.lon.m < 0 || parsed.lon.m > 59)
+            throw new Error('Invalid longitude: minutes out of range.');
+        if(parsed.lat.s < 0 || parsed.lat.s > 59)
+            throw new Error('Invalid latitude: seconds out of range.');
+        if(parsed.lon.s < 0 || parsed.lon.s > 59)
+            throw new Error('Invalid longitude: seconds out of range.');
+
+    }
+    if(!parsed) throw new Error('Invalid DMS: invalid format: '+s);
+    return parsed;
+}
+ddms.parse_decdeg = function(s) {
+    var m = s.match(/((-?[0-9]{1,2}(\.[0-9]+)?)([NnSs])?)((\s*,\s*)|(\s+))(((-?[0-9]{1,3})(\.[0-9]+)?)([WwEe]?))/);
+    var parsed = false;
+    if(m) {
+        var lat = parseFloat(m[2]);
+        var lon = parseFloat(m[9]);
+        var latdir = m[4];
+        var londir = m[12];
+        if(latdir && latdir.match(/^[Ss]$/)) {
+            if(lat < 0) throw new Error('Invalid latitude: negative "S" lat.');
+            lat = -lat;
+        } else if(latdir && latdir.match(/^[Nn]$/)) {
+            if(lat < 0) throw new Error('Invalid latitude: negative "N" lat.');
+        }
+        if(londir && londir.match(/^[Ss]$/)) {
+            if(lon < 0) throw new Error('Invalid longitude: negative "W" lon.');
+            lon = -lon;
+        } else if(londir && londir.match(/^[Nn]$/)) {
+            if(lon < 0) throw new Error('Invalid longitude: negative "E" lon.');
+        }
+        parsed = {
+            "lat": lat, "lon": lon
+        };
+    }
+    return parsed;
+}
+$(document).ready(function() {
+    $('#decdeg').keyup(function() {
+        var decdeg_s = $(this).val();
+        var decdeg_p = null;
+        try {
+            decdeg_p = ddms.parse_decdeg(decdeg_s);
+        } catch(e) {
+            decdeg_p = false;
+        }
+        if(decdeg_p) {
+            $('#decdeg, #dms').removeClass('error');
+            $('#dms').val(
+                dms.dd2dms(decdeg_p.lat).toString()+
+                " "+
+                dms.dd2dms(decdeg_p.lon).toString()
+            );
+        } else {
+            $('#decdeg, #dms').addClass('error');
+        }
+    });
+    $('#dms').keyup(function() {
+        var dms_s = $(this).val();
+        var dms_p = null;
+        try {
+            dms_p = ddms.parse_dms(dms_s);
+        } catch(e) {
+            dms_p = false;
+        }
+        if(dms_p) {
+            $('#decdeg, #dms').removeClass('error');
+            $('#decdeg').val(
+                dms.dms2dd(dms_p.lat).toFixed(6)+
+                ' '+
+                dms.dms2dd(dms_p.lon).toFixed(6)
+            );
+        } else {
+            $('#decdeg, #dms').addClass('error');
+        }
+
+    });
+});
+</script>
+</head>
+<body>
+<fieldset>
+<legend>Decimal Degrees</legend>
+<input type="text" id="decdeg" value="0 0 0 0 0" />
+</fieldset>
+<fieldset>
+<legend>Degrees-Minutes-Seconds</legend>
+<input type="text" id="dms" value="0 0 0 0 0 0" />
+</fieldset>
+</body>
