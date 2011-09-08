@@ -280,6 +280,7 @@ ddms.parse_decmin = function(s) {
         };
 
     }
+    if(!parsed) throw new Error('Invalid format: "'+s+'".');
     return parsed;
 }
 $(document).ready(function() {
@@ -411,7 +412,7 @@ $(document).ready(function() {
     <div id="help" class="container notice">
         <h3>Need Help?</h3>
         <p>Enter decimal degree coordinates in the top box to see the degrees-minutes-seconds equivalent.
-        To convert degrees-minutes-seconds, enter coordinates into the bottom box.
+        To convert decimal minutes or degrees-minutes-seconds, enter coordinates into the middle or bottom box, respectively.
         </p>
         <div class="span-8">
             <p>Decimal degrees can be formatted like any of the following:</p>
@@ -421,6 +422,16 @@ $(document).ready(function() {
             42.350278 -71.106389<br />
             42.350278       -71.106389<br />
             42.350278N, -71.106389<br />
+            </code>
+        </div>
+        <div class="span-8">
+            <p>Decimal minutes can be formatted like any of the following:</p>
+            <code>
+            42 21.0167N, 71 6.3833W<br />
+            42 21.0167 -71 6.3833<br />
+            42 21.0167N ,      71 6.3833W<br />
+            42 21.0167S, 71 6.3833W<br />
+            -42 21.0167, -71 6.3833<br />
             </code>
         </div>
         <div class="span-8">
