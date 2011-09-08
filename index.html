@@ -4,6 +4,29 @@
 <title>Geographic Coordinate Conversion</title>
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.3/jquery.min.js"></script>
 <script>
+function decmin(d,m,t) {
+    this.d = parseInt(d);
+    this.m = parseFloat(m);
+    this.t = t || 0;
+}
+decmin.prototype.toString = function() {
+    var d = this.d;
+    var dir = false;
+    if(this.t && this.t == dms.LAT) {
+        if(d < 0) {
+            dir = "S";
+        } else {
+            dir = "N";
+        }
+    } else if(this.t && this.t == dms.LON) {
+        if(d < 0) {
+            dir = "W";
+        } else {
+            dir = "E";
+        }
+    }
+    return d + " " + parseFloat(this.m).toFixed(4) + (dir || "");
+}
 function dms(d,m,s,t) {
     this.d = parseInt(d);
     this.m = parseInt(m);
@@ -47,6 +70,35 @@ dms.dd2dms = function(dd,t) {
     }
     if(dd<0) d *= -1;
     return new dms(d, m, s, t);
+}
+dms.decmin2dms = function(dmin) {
+    var d = Math.abs(dmin.d);
+    var m = parseInt(dmin.m);
+    var s = (dmin.m - m)*60.0;
+    if(parseInt(s) == 59 && Math.round(s) == 60) {
+        s = 0;
+        m += 1;
+    } else  s = Math.round(s);
+    if(dmin.d<0) d *= -1;
+    return new dms(d, m, s, dmin.t);
+}
+dms.dms2decmin = function(ms) {
+    var d = ms.d;
+    var m = parseInt(ms.m);
+    var s = ms.s/60.0;
+    return new decmin(d, parseFloat(m)+s, ms.t);
+}
+dms.decmin2dd = function(dmin) {
+    var dd = parseFloat(Math.abs(dmin.d));
+    m = Math.floor(Math.abs(dmin.m));
+    s = (dmin.m-m)*60.0;
+    dd += ((m*60.0)+s)/3600.0;
+    if(dmin.d < 0) dd *= -1;
+    return dd;
+}
+dms.dd2decmin = function(d,t) {
+    var ms = dms.dd2dms(d,t);
+    return dms.dms2decmin(ms);
 }
 dms.prototype.valid_lat = function() {
     var valid = false;
@@ -109,6 +161,7 @@ ddms.parse_dms = function(s) {
         parsed = {};
         for(var i=0; i<m.length; i++) {
             var k = ks[i];
+            if(k == null) continue;
             parsed[k] = m[i];
         }
         parsed.lat_deg = parseInt(parsed.lat_deg);
@@ -185,6 +238,50 @@ ddms.parse_decdeg = function(s) {
         throw new Error('Invalid format: "'+s+'".');
     return parsed;
 }
+ddms.parse_decmin = function(s) {
+    var m = s.match(/^\s*((-?[0-9]{1,2})(\s+)((([0-9]{1,2})(\.[0-9]+)?)([NnSs])?))((\s*,\s*)|\s+)((-?[0-9]{1,2})(\s+)((([0-9]{1,2})(\.[0-9]+)?)([WwEe])?))\s*$/);
+    var ks = [
+        'full', 
+        'full_lat',
+        'lat_deg', null, null,
+        'lat_min', null, null, 'lat_dir',
+        null, null, 
+        'full_lon',
+        'lon_deg', null, null,
+        'lon_min', null, null, 'lon_dir'
+    ];
+    var parsed = false;
+    if(m) {
+        parsed = {};
+        for(var i=0; i<m.length; i++) {
+            var k = ks[i];
+            if(k == null) continue;
+            parsed[k] = m[i];
+        }
+        var latdir = parsed.lat_dir;
+        var londir = parsed.lon_dir;
+        var lat = parsed.lat_deg;
+        var lon = parsed.lon_deg;
+        if(latdir && latdir.match(/^[Ss]$/)) {
+            if(lat < 0) throw new Error('Invalid latitude: negative "S" lat.');
+            lat = -lat;
+        } else if(latdir && latdir.match(/^[Nn]$/)) {
+            if(lat < 0) throw new Error('Invalid latitude: negative "N" lat.');
+        }
+        if(londir && londir.match(/^[Ww]$/)) {
+            if(lon < 0) throw new Error('Invalid longitude: negative "W" lon.');
+            lon = -lon;
+        } else if(londir && londir.match(/^[Ee]$/)) {
+            if(lon < 0) throw new Error('Invalid longitude: negative "E" lon.');
+        }
+        parsed = {
+            "lat": new decmin(parseInt(lat), parseFloat(parsed.lat_min), dms.LAT),
+            "lon": new decmin(parseInt(lon), parseFloat(parsed.lon_min), dms.LON)
+        };
+
+    }
+    return parsed;
+}
 $(document).ready(function() {
     $('#decdeg').keyup(function() {
         var decdeg_s = $(this).val();
@@ -197,12 +294,17 @@ $(document).ready(function() {
             err = e.message;
         }
         if(decdeg_p) {
-            $('#decdeg-wrapper, #dms-wrapper').removeClass('error');
+            $('#decdeg-wrapper, #dms-wrapper, #decmin-wrapper').removeClass('error');
             $('#status').removeClass('error').addClass('success').text('ok.').show();
             $('#dms').val(
                 dms.dd2dms(decdeg_p.lat, dms.LAT).toString()+
                 ", "+
                 dms.dd2dms(decdeg_p.lon, dms.LON).toString()
+            );
+            $('#decmin').val(
+                dms.dms2decmin(dms.dd2dms(decdeg_p.lat, dms.LAT))+
+                ", "+
+                dms.dms2decmin(dms.dd2dms(decdeg_p.lon, dms.LON))
             );
         } else {
             $('#decdeg-wrapper, #dms-wrapper').addClass('error');
@@ -220,18 +322,51 @@ $(document).ready(function() {
             err = e.message
         }
         if(dms_p) {
-            $('#decdeg-wrapper, #dms-wrapper').removeClass('error');
+            $('#decdeg-wrapper, #dms-wrapper, #decmin').removeClass('error');
             $('#status').removeClass('error').addClass('success').text('ok.').show();
             $('#decdeg').val(
                 dms.dms2dd(dms_p.lat).toFixed(6)+
                 ', '+
                 dms.dms2dd(dms_p.lon).toFixed(6)
             );
+            $('#decmin').val(
+                dms.dms2decmin(dms_p.lat).toString()+
+                ", "+
+                dms.dms2decmin(dms_p.lon).toString()
+            );
         } else {
             $('#decdeg-wrapper, #dms-wrapper').addClass('error');
             $('#status').removeClass('success').addClass('error').show().text(err);
         }
 
+    });
+    $('#decmin').keyup(function() {
+        var decmin_s = $(this).val();
+        var decmin_p = false;
+        var err = null;
+        try {
+            decmin_p = ddms.parse_decmin(decmin_s);
+        } catch(e) {
+            decmin_p = false;
+            err = e.message
+        }
+        if(decmin_p) {
+            $('#decdeg-wrapper, #dms-wrapper, #decmin-wrapper').removeClass('error');
+            $('#status').removeClass('error').addClass('success').text('ok.').show();
+            $('#decdeg').val(
+                dms.decmin2dd(decmin_p.lat).toFixed(6)+
+                ', '+
+                dms.decmin2dd(decmin_p.lon).toFixed(6)
+            );
+            $('#dms').val(
+                dms.decmin2dms(decmin_p.lat, dms.LAT).toString()+
+                ", "+
+                dms.decmin2dms(decmin_p.lon, dms.LON).toString()
+            );
+        } else {
+            $('#decdeg-wrapper, #dms-wrapper').addClass('error');
+            $('#status').removeClass('success').addClass('error').show().text(err);
+        }
     });
     $('#help h3').click(function() {
         $(this).siblings().toggle();
@@ -258,6 +393,12 @@ $(document).ready(function() {
     <legend>Decimal Degrees</legend>
     <div id="decdeg-wrapper">
     <input class="title" type="text" id="decdeg" value="42.350278, -71.106389" />
+    </div>
+    </fieldset>
+    <fieldset>
+    <legend>Decimal Minutes</legend>
+    <div id="decmin-wrapper">
+    <input class="title" type="text" id="decmin" value="" />
     </div>
     </fieldset>
     <fieldset>
