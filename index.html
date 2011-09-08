@@ -25,7 +25,7 @@ decmin.prototype.toString = function() {
             dir = "E";
         }
     }
-    return d + " " + parseFloat(this.m).toFixed(4) + (dir || "");
+    return Math.abs(d) + " " + parseFloat(this.m).toFixed(4) + (dir || "");
 }
 function dms(d,m,s,t) {
     this.d = parseInt(d);
