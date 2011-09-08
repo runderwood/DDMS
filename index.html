@@ -149,7 +149,7 @@ ddms.parse_dms = function(s) {
             throw new Error('Invalid longitude: seconds out of range.');
 
     }
-    if(!parsed) throw new Error('Invalid DMS: invalid format: '+s);
+    if(!parsed) throw new Error('Invalid DMS: invalid format: "'+s+'".');
     return parsed;
 }
 ddms.parse_decdeg = function(s) {
@@ -181,6 +181,8 @@ ddms.parse_decdeg = function(s) {
             throw new Error('Invalid longitude: out of range.');
         }
     }
+    if(!parsed)
+        throw new Error('Invalid format: "'+s+'".');
     return parsed;
 }
 $(document).ready(function() {
@@ -216,7 +218,6 @@ $(document).ready(function() {
         } catch(e) {
             dms_p = false;
             err = e.message
-            console.log(err);
         }
         if(dms_p) {
             $('#decdeg-wrapper, #dms-wrapper').removeClass('error');
@@ -265,7 +266,7 @@ $(document).ready(function() {
     <input class="title" type="text" id="dms" value="42N 21' 1&quot;, 71W 6' 23&quot;" />
     </div>
     </fieldset>
-    <div id="status">&nbsp;<div>
+    <div id="status">&nbsp;</div>
     <div id="help" class="container notice">
         <h3>Need Help?</h3>
         <p>Enter decimal degree coordinates in the top box to see the degrees-minutes-seconds equivalent.
